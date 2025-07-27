@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { BagItem, PREDEFINED_BAG_ITEMS } from '@/types'
+import { getItemImageName } from '@/lib/itemImages'
+import Image from 'next/image'
 
 interface BagItemWithQuantity {
   name: string
@@ -287,10 +289,24 @@ export default function BagPage() {
                       {items.map((item) => (
                         <div key={item.name} className="relative group">
                           <div className="bg-gradient-to-b from-slate-700 to-slate-800 border border-slate-600 rounded-lg p-1.5 hover:border-blue-400 transition-all duration-200 shadow-lg">
-                            <div className="aspect-square bg-gradient-to-br from-amber-400/20 to-amber-600/20 rounded-md mb-1.5 flex items-center justify-center border border-amber-500/30">
-                              <div className="text-amber-200 text-[10px] font-bold leading-none text-center">
-                                {item.name.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase()}
-                              </div>
+                            <div className="aspect-square bg-gradient-to-br from-amber-400/20 to-amber-600/20 rounded-md mb-1.5 flex items-center justify-center border border-amber-500/30 overflow-hidden">
+                              <Image
+                                src={`/images/items/${getItemImageName(item.name)}.png`}
+                                alt={item.name}
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover rounded-sm"
+                                onError={(e) => {
+                                  // Try SVG format first, then fallback to default
+                                  const target = e.target as HTMLImageElement;
+                                  if (target.src.endsWith('.png')) {
+                                    target.src = `/images/items/${getItemImageName(item.name)}.svg`;
+                                  } else {
+                                    target.src = '/images/items/default_item.svg';
+                                  }
+                                }}
+                                unoptimized
+                              />
                             </div>
                             <div className="space-y-1">
                               <div 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="8" fill="url(#stoneGradient)" stroke="#6B7280" stroke-width="2"/>
+  <circle cx="32" cy="32" r="16" fill="#9CA3AF"/>
+  <circle cx="32" cy="32" r="10" fill="#6B7280"/>
+  <circle cx="32" cy="32" r="6" fill="#4B5563"/>
+  <defs>
+    <linearGradient id="stoneGradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3F4F6"/>
+      <stop offset="1" stop-color="#6B7280"/>
+    </linearGradient>
+  </defs>
+</svg>
