@@ -4,6 +4,13 @@ export interface User {
   created_at: string
 }
 
+export interface UserProfile {
+  id: string
+  nickname?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface BagItem {
   id: string
   user_id: string
