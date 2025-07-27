@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -19,7 +18,6 @@ interface MKDataItem {
 }
 
 export default function MKDataPage() {
-  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSeason, setSelectedSeason] = useState(1)
   const [mkSeasonsData, setMkSeasonsData] = useState<MKDataItem[]>([])

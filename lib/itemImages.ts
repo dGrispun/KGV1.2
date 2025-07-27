@@ -17,7 +17,7 @@ export const getItemFallbackImage = (): string => {
 }
 
 // Check if item has a custom image
-export const hasItemImage = (itemName: string): boolean => {
+export const hasItemImage = (_itemName: string): boolean => {
   // For now, we'll assume all items have images
   // This can be expanded to check actual file existence
   return true

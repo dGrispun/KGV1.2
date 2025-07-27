@@ -7,7 +7,6 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { toast } from 'sonner'
@@ -224,7 +223,7 @@ export default function BagPage() {
                   <DialogHeader>
                     <DialogTitle className="text-white">Add Custom Item</DialogTitle>
                     <DialogDescription className="text-slate-300">
-                      Add a custom item to your bag. It will appear in the "Other Items" category.
+                      Add a custom item to your bag. It will appear in the &ldquo;Other Items&rdquo; category.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">

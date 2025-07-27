@@ -4,14 +4,12 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Plus, Calculator, Settings } from 'lucide-react'
+import { Calculator, Settings } from 'lucide-react'
 import { BagItem, MKPoint, MK_DAYS } from '@/types'
 
 // Season data mapping - points per unit for each item in each season
@@ -117,17 +115,12 @@ export default function MKPage() {
   const [saving, setSaving] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState(1)
   const [availableSeasons, setAvailableSeasons] = useState<number[]>(Array.from({ length: DEFAULT_MAX_SEASON }, (_, i) => i + 1))
-  const [maxSeason, setMaxSeason] = useState(DEFAULT_MAX_SEASON)
   const [bagItems, setBagItems] = useState<Map<string, number>>(new Map())
   const [mkPoints, setMKPoints] = useState<Map<string, number>>(new Map())
   const [actionQuantities, setActionQuantities] = useState<ActionQuantities>({})
   const [dayData, setDayData] = useState<DayData[]>([])
   const [sharedItems, setSharedItems] = useState<SharedItemData[]>([])
   const [grandTotal, setGrandTotal] = useState(0)
-  const [newItemName, setNewItemName] = useState('')
-  const [newItemPoints, setNewItemPoints] = useState(0)
-  const [selectedDay, setSelectedDay] = useState('')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const supabase = createClient()
 
@@ -201,7 +194,6 @@ export default function MKPage() {
 
       // Set the selected season to the max season with data
       setSelectedSeason(maxSeasonWithData)
-      setMaxSeason(Math.max(maxSeasonWithData, DEFAULT_MAX_SEASON))
 
       // Generate available seasons (1 to max available)
       const seasons = Array.from({ length: Math.max(maxSeasonWithData, DEFAULT_MAX_SEASON) }, (_, i) => i + 1)
@@ -315,16 +307,6 @@ export default function MKPage() {
     setMKPoints(newMKPoints)
   }
 
-  const updateActionQuantity = (day: string, itemName: string, quantity: number) => {
-    setActionQuantities(prev => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        [itemName]: quantity
-      }
-    }))
-  }
-
   const updateSharedActionQuantity = (itemName: string, quantity: number) => {
     // Update the quantity for shared action items across all days
     const newActionQuantities = { ...actionQuantities }
@@ -342,7 +324,13 @@ export default function MKPage() {
 
     setSaving(true)
     try {
-      const upsertData: any[] = []
+      const upsertData: Array<{
+        user_id: string;
+        day: string;
+        item_name: string;
+        points_per_unit: number;
+        season: number;
+      }> = []
       
       // Save custom points per unit with selected season
       mkPoints.forEach((pointsPerUnit, key) => {
@@ -374,29 +362,6 @@ export default function MKPage() {
     } finally {
       setSaving(false)
     }
-  }
-
-  const addCustomItem = async () => {
-    if (!newItemName.trim() || !selectedDay) {
-      toast.error('Please fill in all fields')
-      return
-    }
-
-    const key = `${selectedDay}:${newItemName}`
-    if (mkPoints.has(key)) {
-      toast.error('Item already exists for this day')
-      return
-    }
-
-    const newMKPoints = new Map(mkPoints)
-    newMKPoints.set(key, newItemPoints)
-    setMKPoints(newMKPoints)
-
-    setNewItemName('')
-    setNewItemPoints(0)
-    setSelectedDay('')
-    setIsDialogOpen(false)
-    toast.success('Custom item added successfully!')
   }
 
   if (loading) {
@@ -540,7 +505,7 @@ export default function MKPage() {
                 </div>
 
                 <div className="text-center text-slate-400 py-8">
-                  <p className="text-lg">All items for Day {day.day} are now in the "Shared Items (Counted Once)" section above.</p>
+                  <p className="text-lg">All items for Day {day.day} are now in the &ldquo;Shared Items (Counted Once)&rdquo; section above.</p>
                   <p className="text-sm mt-2">This prevents duplicate counting and gives you the accurate total points.</p>
                 </div>
               </TabsContent>
