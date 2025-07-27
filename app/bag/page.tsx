@@ -10,15 +10,42 @@ import { Label } from '@/components/ui/label'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { Plus, Camera, Upload, X } from 'lucide-react'
 import { BagItem, PREDEFINED_BAG_ITEMS } from '@/types'
 import { getItemImageName } from '@/lib/itemImages'
 import Image from 'next/image'
+import Tesseract from 'tesseract.js'
+import Fuse from 'fuse.js'
 
 interface BagItemWithQuantity {
   name: string
   quantity: number
 }
+
+// Predefined items for OCR matching
+const OCR_ITEMS = [
+  'Gold', 'Diamonds',
+  'Tier 8 Magic Book', 'Tier 7 Magic Book', 'Tier 6 Magic Book', 'Tier 5 Magic Book',
+  'Tier 4 Magic Book', 'Tier 3 Magic Book', 'Tier 2 Magic Book', 'Tier 1 Magic Book',
+  'T9 Forge Blueprint', 'King Forge Blueprint', 'Luxurious Blueprint', 'Peacock Plume Forge Blueprint',
+  'Legendary Forge Blueprint', 'Epic Forge Blueprint', 'Perfect Forge Blueprint', 'Excellent Forge Blueprint',
+  'Tier 9 Magic Dust', 'Tier 8 Magic Dust', 'Tier 7 Magic Dust', 'Tier 6 Magic Dust',
+  'Tier 5 Magic Dust', 'Tier 4 Magic Dust', 'Tier 3 Magic Dust',
+  'Blueprint: Gilded Armor', 'Blueprint: Dark Armor', 'Blueprint: Balrog Armor', 'Blueprint: Legendary Armor',
+  'Blueprint: Immortal Armor', 'Blueprint: Demonic Armor', 'Blueprint: Cerulean Armor',
+  'Perfect Summoning Spell', 'Advanced Summoning Spell', 'Blood of Titan', 'Elemental Vial',
+  'Fortune Potion', 'Strenghening Potion', 'Deluxe Dragon Soul Stone', 'Dragon Soul Stone',
+  'Stone', 'Forge Hammer', 'Wood', 'Steel',
+  '10M Gold', '1M Gold', '500K Gold', '100K Gold', '50k Gold', '10k Gold', '5k Gold', '1k Gold',
+  'Tier 4 Archer EXP Book', 'Tier 3 Archer EXP Book', 'Tier 2 Archer EXP Book', 'Tier 1 Archer EXP Book',
+  'Tier 4 Flame Mage EXP Book', 'Tier 3 Flame Mage EXP Book', 'Tier 2 Flame Mage EXP Book', 'Tier 1 Flame Mage EXP Book',
+  'Tier 4 Ice Wizard EXP Book', 'Tier 3 Ice Wizard EXP Book', 'Tier 2 Ice Wizard EXP Book', 'Tier 1 Ice Wizard EXP Book',
+  'Tier 4 Goblin EXP Book', 'Tier 3 Goblin EXP Book', 'Tier 2 Goblin EXP Book', 'Tier 1 Goblin EXP Book',
+  'Free-Pick Dragon Rune', 'Epic Dragon Rune', 'Perfect Dragon Rune', 'Excellent Dragon Rune', 'Rare Dragon Rune',
+  'Free-Pick Heroes', 'Master Talent Book', 'Crown of the Oractle', 'Skill Shard', 'Gallery Shard',
+  'Free-Pick Unit EXP Book', 'Light Reagent', 'Custom Construction Item',
+  '200 Action Points', '100 Action Points', '50 Action Points', '20 Action Points', '10 Action Points', '5 Action Points'
+]
 
 export default function BagPage() {
   const { user } = useAuth()
@@ -28,6 +55,14 @@ export default function BagPage() {
   const [newItemName, setNewItemName] = useState('')
   const [newItemQuantity, setNewItemQuantity] = useState(0)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  
+  // OCR related state
+  const [isOcrDialogOpen, setIsOcrDialogOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [ocrProgress, setOcrProgress] = useState(0)
+  const [detectedItems, setDetectedItems] = useState<Record<string, number>>({})
 
   const supabase = createClient()
 
@@ -82,6 +117,194 @@ export default function BagPage() {
         item.name === itemName ? { ...item, quantity: Math.max(0, quantity) } : item
       )
     )
+  }
+
+  const quickAdd = (itemName: string, amount: number) => {
+    setBagItems(items =>
+      items.map(item =>
+        item.name === itemName 
+          ? { ...item, quantity: item.quantity + amount }
+          : item
+      )
+    )
+  }
+
+  const quickSubtract = (itemName: string, amount: number) => {
+    setBagItems(items =>
+      items.map(item =>
+        item.name === itemName 
+          ? { ...item, quantity: Math.max(0, item.quantity - amount) }
+          : item
+      )
+    )
+  }
+
+  const setQuickValue = (itemName: string, value: number) => {
+    setBagItems(items =>
+      items.map(item =>
+        item.name === itemName 
+          ? { ...item, quantity: value }
+          : item
+      )
+    )
+  }
+
+  // OCR Functions
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedImage(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const processImageWithOCR = async () => {
+    if (!selectedImage) return
+
+    setIsProcessing(true)
+    setOcrProgress(0)
+    setDetectedItems({})
+
+    try {
+      const result = await Tesseract.recognize(
+        selectedImage,
+        'eng',
+        {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              setOcrProgress(Math.round(m.progress * 100))
+            }
+          }
+        }
+      )
+
+      const extractedText = result.data.text
+      const parsedItems = parseOCRText(extractedText)
+      setDetectedItems(parsedItems)
+      
+      if (Object.keys(parsedItems).length === 0) {
+        toast.error('No recognized items found in the image')
+      } else {
+        toast.success(`Found ${Object.keys(parsedItems).length} items`)
+      }
+    } catch (error) {
+      console.error('OCR Error:', error)
+      toast.error('Failed to process image')
+    } finally {
+      setIsProcessing(false)
+      setOcrProgress(0)
+    }
+  }
+
+  const parseOCRText = (text: string): Record<string, number> => {
+    const fuse = new Fuse(OCR_ITEMS, {
+      threshold: 0.3, // Fuzzy matching threshold
+      includeScore: true,
+      keys: ['']
+    })
+
+    const lines = text.split('\n')
+    const detectedItems: Record<string, number> = {}
+
+    for (const line of lines) {
+      // Try to find patterns like "Item Name: 123" or "Item Name 123"
+      const patterns = [
+        /^(.+?)[:]\s*(\d+[,.]?\d*)/, // "Item Name: 123"
+        /^(.+?)\s+(\d+[,.]?\d*)$/, // "Item Name 123"
+        /(\d+[,.]?\d*)\s+(.+)$/, // "123 Item Name"
+      ]
+
+      for (const pattern of patterns) {
+        const match = line.trim().match(pattern)
+        if (match) {
+          let itemName = ''
+          let quantity = 0
+
+          if (pattern.source.includes('(\\d+[,.]?\\d*)\\s+(.+)$')) {
+            // Pattern 3: quantity first
+            quantity = parseInt(match[1].replace(/[,.]/, '')) || 0
+            itemName = match[2].trim()
+          } else {
+            // Pattern 1 & 2: item name first
+            itemName = match[1].trim()
+            quantity = parseInt(match[2].replace(/[,.]/, '')) || 0
+          }
+
+          // Handle common OCR errors
+          itemName = itemName
+            .replace(/Oractle/gi, 'Oracle')
+            .replace(/Strenghening/gi, 'Strengthening')
+            .replace(/\b(\d+)M\b/gi, '$1M Gold')
+            .replace(/\b(\d+)K\b/gi, '$1k Gold')
+
+          // Use fuzzy matching to find the closest item
+          const searchResults = fuse.search(itemName)
+          if (searchResults.length > 0 && searchResults[0].score && searchResults[0].score < 0.4) {
+            const matchedItem = searchResults[0].item
+            if (quantity > 0) {
+              detectedItems[matchedItem] = quantity
+            }
+          }
+          break
+        }
+      }
+    }
+
+    return detectedItems
+  }
+
+  const applyDetectedItems = async () => {
+    if (Object.keys(detectedItems).length === 0) return
+
+    // Update the bag items with detected quantities
+    setBagItems(items =>
+      items.map(item => {
+        const detectedQuantity = detectedItems[item.name]
+        return detectedQuantity !== undefined
+          ? { ...item, quantity: detectedQuantity }
+          : item
+      })
+    )
+
+    // Save to database
+    setSaving(true)
+    try {
+      const updatedItems = Object.entries(detectedItems).map(([itemName, quantity]) => ({
+        user_id: user!.id,
+        item_name: itemName,
+        quantity: quantity
+      }))
+
+      const { error } = await supabase
+        .from('bag_items')
+        .upsert(updatedItems, { 
+          onConflict: 'user_id,item_name',
+          ignoreDuplicates: false 
+        })
+
+      if (error) throw error
+
+      toast.success(`Updated ${Object.keys(detectedItems).length} items from screenshot`)
+      setIsOcrDialogOpen(false)
+      resetOCRState()
+    } catch (error) {
+      console.error('Error saving detected items:', error)
+      toast.error('Failed to save detected items')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const resetOCRState = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    setDetectedItems({})
+    setOcrProgress(0)
+    setIsProcessing(false)
   }
 
   const saveBagItems = async () => {
@@ -212,6 +435,136 @@ export default function BagPage() {
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-2xl font-bold text-white drop-shadow-lg">Your Bag</h1>
             <div className="flex space-x-2">
+              {/* Screenshot Upload Dialog */}
+              <Dialog open={isOcrDialogOpen} onOpenChange={setIsOcrDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center space-x-1 bg-purple-600/80 hover:bg-purple-500 border-purple-400 text-white text-sm">
+                    <Camera className="h-3 w-3" />
+                    <span>Scan Screenshot</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-slate-800 border-slate-600 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Upload Inventory Screenshot</DialogTitle>
+                    <DialogDescription className="text-slate-300">
+                      Upload a screenshot of your game inventory to automatically detect items and quantities.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {/* Image Upload */}
+                    <div className="space-y-2">
+                      <Label htmlFor="screenshot" className="text-sm text-slate-200 font-medium">Select Screenshot</Label>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          id="screenshot"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="bg-slate-700 border-slate-600 text-white text-sm"
+                        />
+                        {selectedImage && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedImage(null)
+                              setImagePreview(null)
+                              setDetectedItems({})
+                            }}
+                            className="text-red-300 border-red-500/50 hover:bg-red-600/20"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Image Preview */}
+                    {imagePreview && (
+                      <div className="space-y-2">
+                        <Label className="text-sm text-slate-200 font-medium">Preview</Label>
+                        <div className="relative max-h-60 overflow-hidden rounded-lg border border-slate-600">
+                          <Image
+                            src={imagePreview}
+                            alt="Screenshot preview"
+                            width={400}
+                            height={300}
+                            className="w-full h-auto object-contain"
+                            unoptimized
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Process Button */}
+                    {selectedImage && !isProcessing && Object.keys(detectedItems).length === 0 && (
+                      <Button
+                        onClick={processImageWithOCR}
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Process Screenshot
+                      </Button>
+                    )}
+
+                    {/* Processing Status */}
+                    {isProcessing && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm text-slate-300">
+                          <span>Processing image...</span>
+                          <span>{ocrProgress}%</span>
+                        </div>
+                        <div className="w-full bg-slate-700 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${ocrProgress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Detected Items */}
+                    {Object.keys(detectedItems).length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm text-slate-200 font-medium">
+                          Detected Items ({Object.keys(detectedItems).length})
+                        </Label>
+                        <div className="max-h-40 overflow-y-auto bg-slate-900/50 rounded-lg p-3 space-y-1">
+                          {Object.entries(detectedItems).map(([itemName, quantity]) => (
+                            <div key={itemName} className="flex justify-between items-center text-sm">
+                              <span className="text-slate-300">{itemName}</span>
+                              <span className="text-blue-300 font-medium">{quantity.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsOcrDialogOpen(false)
+                        resetOCRState()
+                      }} 
+                      className="text-sm border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      Cancel
+                    </Button>
+                    {Object.keys(detectedItems).length > 0 && (
+                      <Button 
+                        onClick={applyDetectedItems} 
+                        disabled={saving}
+                        className="bg-purple-600 hover:bg-purple-500 text-white text-sm"
+                      >
+                        {saving ? 'Applying...' : `Apply ${Object.keys(detectedItems).length} Items`}
+                      </Button>
+                    )}
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Add Item Dialog */}
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" className="flex items-center space-x-1 bg-green-600/80 hover:bg-green-500 border-green-400 text-white text-sm">
