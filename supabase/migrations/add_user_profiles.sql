@@ -1,7 +1,7 @@
 -- Create user_profiles table to store additional user information
 CREATE TABLE user_profiles (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-    nickname TEXT,
+    nickname TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -19,17 +19,6 @@ CREATE POLICY "Users can update their own profile" ON user_profiles
 CREATE POLICY "Users can insert their own profile" ON user_profiles
     FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Create a trigger to automatically create a profile when a user signs up
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.user_profiles (id)
-    VALUES (NEW.id);
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create the trigger
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- Note: We don't create a trigger to automatically create profiles
+-- because nickname is now mandatory and must be provided by the user
+-- Profiles will be created when users set their nickname for the first time

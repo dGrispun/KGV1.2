@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [nickname, setNickname] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
   const { signIn, signUp, user } = useAuth()
@@ -26,8 +27,15 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validation
     if (!email || !password) {
       toast.error('Please fill in all fields')
+      return
+    }
+    
+    if (isSignUp && !nickname.trim()) {
+      toast.error('Nickname is required for sign up')
       return
     }
 
@@ -35,7 +43,7 @@ export default function LoginPage() {
     
     try {
       const { error } = isSignUp 
-        ? await signUp(email, password)
+        ? await signUp(email, password, nickname.trim())
         : await signIn(email, password)
 
       if (error) {
@@ -86,6 +94,21 @@ export default function LoginPage() {
                 className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
               />
             </div>
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="nickname" className="text-slate-200">Nickname</Label>
+                <Input
+                  id="nickname"
+                  type="text"
+                  placeholder="Enter your nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  required
+                  maxLength={50}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="password" className="text-slate-200">Password</Label>
               <Input

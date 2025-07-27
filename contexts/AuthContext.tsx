@@ -9,8 +9,9 @@ interface AuthContextType {
   user: User | null
   userProfile: UserProfile | null
   loading: boolean
+  needsNickname: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
-  signUp: (email: string, password: string) => Promise<{ error: any }>
+  signUp: (email: string, password: string, nickname: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   updateProfile: (nickname: string) => Promise<{ error: any }>
 }
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [needsNickname, setNeedsNickname] = useState(false)
   const supabase = createClient()
 
   // Function to load user profile
@@ -37,9 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      setUserProfile(data || null)
+      if (data) {
+        setUserProfile(data)
+        setNeedsNickname(false)
+      } else {
+        // User doesn't have a profile yet, they need to set a nickname
+        setUserProfile(null)
+        setNeedsNickname(true)
+      }
     } catch (error) {
       console.error('Error loading user profile:', error)
+      setNeedsNickname(true)
     }
   }
 
@@ -64,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await loadUserProfile(session.user.id)
         } else {
           setUserProfile(null)
+          setNeedsNickname(false)
         }
         setLoading(false)
       }
@@ -80,12 +91,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error }
   }
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-    return { error }
+  const signUp = async (email: string, password: string, nickname: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      })
+
+      if (error) {
+        return { error }
+      }
+
+      // If sign up was successful and user is created, create the profile
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: data.user.id,
+            nickname: nickname.trim()
+          })
+
+        if (profileError) {
+          console.error('Error creating user profile:', profileError)
+          // Note: We still return success for auth, profile can be created later
+        }
+      }
+
+      return { error: null }
+    } catch (error) {
+      return { error }
+    }
   }
 
   const signOut = async () => {
@@ -95,12 +130,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = async (nickname: string) => {
     if (!user) return { error: new Error('No user logged in') }
 
+    if (!nickname.trim()) {
+      return { error: new Error('Nickname is required') }
+    }
+
     try {
       const { error } = await supabase
         .from('user_profiles')
         .upsert({
           id: user.id,
-          nickname: nickname.trim() || null,
+          nickname: nickname.trim(),
           updated_at: new Date().toISOString()
         })
 
@@ -120,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     userProfile,
     loading,
+    needsNickname,
     signIn,
     signUp,
     signOut,

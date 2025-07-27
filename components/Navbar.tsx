@@ -78,7 +78,7 @@ export function Navbar() {
                 <span>{saving ? 'Saving...' : getSaveButtonText()}</span>
               </Button>
             )}
-            {userProfile?.nickname && (
+            {userProfile && (
               <span className="text-sm font-medium text-blue-300">
                 {userProfile.nickname}
               </span>
@@ -112,7 +112,7 @@ export function Navbar() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nickname" className="text-sm text-slate-200 font-medium">Nickname (Optional)</Label>
+                    <Label htmlFor="nickname" className="text-sm text-slate-200 font-medium">Nickname *</Label>
                     <Input
                       id="nickname"
                       value={nickname}
@@ -120,6 +120,7 @@ export function Navbar() {
                       placeholder="Enter your nickname"
                       className="bg-slate-700 border-slate-600 text-white text-sm"
                       maxLength={50}
+                      required
                     />
                   </div>
                 </div>
@@ -136,8 +137,8 @@ export function Navbar() {
                   </Button>
                   <Button 
                     onClick={handleProfileSave} 
-                    disabled={profileSaving}
-                    className="bg-purple-600 hover:bg-purple-500 text-white text-sm"
+                    disabled={profileSaving || !nickname.trim()}
+                    className="bg-purple-600 hover:bg-purple-500 text-white text-sm disabled:opacity-50"
                   >
                     {profileSaving ? 'Saving...' : 'Save Profile'}
                   </Button>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Navbar, SaveContext } from '@/components/Navbar'
 import { Sidebar } from '@/components/Sidebar'
+import { NicknameSetup } from '@/components/NicknameSetup'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -13,7 +14,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, saveFunction, saving }: ProtectedRouteProps) {
-  const { user, loading } = useAuth()
+  const { user, loading, needsNickname } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -32,6 +33,11 @@ export function ProtectedRoute({ children, saveFunction, saving }: ProtectedRout
 
   if (!user) {
     return null
+  }
+
+  // Show nickname setup if user needs to set a nickname
+  if (needsNickname) {
+    return <NicknameSetup />
   }
 
   return (

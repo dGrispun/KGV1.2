@@ -6,7 +6,7 @@ export interface User {
 
 export interface UserProfile {
   id: string
-  nickname?: string
+  nickname: string
   created_at: string
   updated_at: string
 }
