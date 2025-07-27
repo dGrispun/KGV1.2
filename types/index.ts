@@ -19,6 +19,7 @@ export interface MKPoint {
   day: string
   item_name: string
   points_per_unit: number
+  season?: number
   created_at?: string
   updated_at?: string
 }

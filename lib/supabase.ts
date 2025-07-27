@@ -36,6 +36,16 @@ export interface MKPoint {
   day: string
   item_name: string
   points_per_unit: number
+  season?: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface MKSeasonData {
+  id: string
+  item_name: string
+  season_values: number[]
+  season_quantities: number[]
   created_at?: string
   updated_at?: string
 }
@@ -52,6 +62,11 @@ export interface Database {
         Row: MKPoint
         Insert: Omit<MKPoint, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<MKPoint, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
+      }
+      mk_seasons_data: {
+        Row: MKSeasonData
+        Insert: Omit<MKSeasonData, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<MKSeasonData, 'id' | 'created_at' | 'updated_at'>>
       }
     }
   }
